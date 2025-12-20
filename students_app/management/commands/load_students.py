@@ -63,43 +63,50 @@ def parse_weight_kg(value: str) -> int:
 
     return w
 
-def normalize_header(h: str) -> str:
+def normalize_header(header: str) -> str:
     '''
     Normalize CSV headers:
     '''
-    h = str(h).strip()
+    h = str(header).strip()
     h = re.sub(r'\s+', ' ', h)
 
     return h.casefold()
 
-def normalize_cell(v: str) -> str:
+def normalize_cell(value: str) -> str:
     '''Normalize cell strings similarly'''
-    v = '' if v is None else str(v)
+    v = '' if value is None else str(value)
     v = v.strip()
     v = re.sub(r'\s+', ' ', v)
 
     return v
 
+def normalize_label(value: str) -> str:
+    '''We keep Department/Hobby name original case'''
+    v = '' if value is None else str(value)
+    v = v.strip()
+    v = re.sub(r'\s+', ' ', v)
+    return v
+
 # === CSV column names (with typos and all) ===
-COL_CERT = normalize_header("Certification Course")
-COL_GENDER = normalize_header("Gender")
-COL_DEPT = normalize_header("Department")
-COL_HEIGHT = normalize_header("Height(CM)")
-COL_WEIGHT = normalize_header("Weight(KG)")
-COL_MARK10 = normalize_header("10th Mark")
-COL_MARK12 = normalize_header("12th Mark")
-COL_COLLEGE = normalize_header("college mark")
-COL_HOBBY = normalize_header("hobbies")
-COL_STUDY_TIME = normalize_header("daily studing time")
-COL_PREF = normalize_header("prefer to study in")
-COL_SALARY = normalize_header("salary expectation")
-COL_LIKE_DEGREE = normalize_header("Do you like your degree?")
-COL_WILL = normalize_header("willingness to pursue a career based on their degree")
-COL_MEDIA = normalize_header("social medai & video")
-COL_TRAVEL = normalize_header("Travelling Time")
-COL_STRESS = normalize_header("Stress Level")
-COL_FIN = normalize_header("Financial Status")
-COL_PARTTIME = normalize_header("part-time job")
+COL_CERT = normalize_header('Certification Course')
+COL_GENDER = normalize_header('Gender')
+COL_DEPT = normalize_header('Department')
+COL_HEIGHT = normalize_header('Height(CM)')
+COL_WEIGHT = normalize_header('Weight(KG)')
+COL_MARK10 = normalize_header('10th Mark')
+COL_MARK12 = normalize_header('12th Mark')
+COL_COLLEGE = normalize_header('college mark')
+COL_HOBBY = normalize_header('hobbies')
+COL_STUDY_TIME = normalize_header('daily studing time')
+COL_PREF = normalize_header('prefer to study in')
+COL_SALARY = normalize_header('salary expectation')
+COL_LIKE_DEGREE = normalize_header('Do you like your degree?')
+COL_WILL = normalize_header('willingness to pursue a career based on their degree')
+COL_MEDIA = normalize_header('social medai & video')
+COL_TRAVEL = normalize_header('Travelling Time')
+COL_STRESS = normalize_header('Stress Level')
+COL_FIN = normalize_header('Financial Status')
+COL_PARTTIME = normalize_header('part-time job')
 
 
 
@@ -175,8 +182,8 @@ class Command(BaseCommand):
             return
 
         # Ensure Departments & Hobbies exist
-        dept_names = sorted({normalize_str(row[COL_DEPT]) for row in rows})
-        hobby_names = sorted({normalize_str(row[COL_HOBBY]) for row in rows})
+        dept_names = sorted({normalize_label(row[COL_DEPT]) for row in rows})
+        hobby_names = sorted({normalize_label(row[COL_HOBBY]) for row in rows})
 
         # Bulk create departments and Hobbies
         Department.objects.bulk_create(
@@ -192,7 +199,7 @@ class Command(BaseCommand):
         )
 
 
-        # Create a dict "cache"
+        # Create a dict 'cache'
         dept_by_name = {department.name: department for department in Department.objects.filter(name__in=dept_names)}
         hobby_by_name = {hobby.name: hobby for hobby in Hobby.objects.filter(name__in=hobby_names)}
 
@@ -204,8 +211,8 @@ class Command(BaseCommand):
         # Iterate and create students (populating list) and collecting metrics (row 1 is header, so we start from 2)
         for ind, row in enumerate(rows, start=2):
             try:
-                dept_name = normalize_str(row[COL_DEPT])
-                hobby_name = normalize_str(row[COL_HOBBY])
+                dept_name = normalize_label(row[COL_DEPT])
+                hobby_name = normalize_label(row[COL_HOBBY])
                 dept = dept_by_name[dept_name]
                 hobby = hobby_by_name[hobby_name]
 
