@@ -1,8 +1,10 @@
 from django.http import JsonResponse
-from rest_framework import generics
+from django.db.models import ProtectedError
+from rest_framework import generics, status
+from rest_framework.response import Response
 
-from students_app.models import Student
-from students_app.serializers import StudentReadSerializer, StudentWriteSerializer
+from students_app.models import Student, Department, Hobby
+from students_app.serializers import StudentReadSerializer, StudentWriteSerializer, DepartmentSerializer, HobbySerializer
 
 # Create your views here.
 
@@ -12,16 +14,11 @@ def home(request):
     'api_version': '1.0',
     'documentation_url': '<PENDING>',
     'links': {
-        'self': {
-            'href': '/',
-            'methods': ['GET'],
-            'rel': 'self',
-        },
-        'health': {
-            'href': '/health',
-            'methods': ['GET'],
-            'rel': 'status',
-        },
+        'self': {'href': '/', 'methods': ['GET'], 'rel': 'self'},
+        'health': {'href': '/health', 'methods': ['GET'], 'rel': 'status'},
+        'students': {'href': '/students', 'methods': ['GET', 'POST'], 'rel': 'collection'},
+        'departments': {'href': '/departments', 'methods': ['GET', 'POST'], 'rel': 'collection'},
+        'hobbies': {'href': '/hobbies', 'methods': ['GET', 'POST'], 'rel': 'collection'},
     },
 })
 
@@ -31,6 +28,10 @@ def health(request):
         'api_version': '1.0',
         'status': 'ok',
     })
+
+
+
+# === STUDENTS CRUD ===
 
 class StudentListCreateView(generics.ListCreateAPIView):
     queryset = Student.objects.select_related('department', 'hobby').select_related('metrics').all()
@@ -49,3 +50,56 @@ class StudentDetailView(generics.RetrieveUpdateDestroyAPIView):
             return StudentWriteSerializer
 
         return StudentReadSerializer
+
+
+
+# === DEPARTMENT CRUD ===
+
+class DepartmentListCreateView(generics.ListCreateAPIView):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+
+
+class DepartmentDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Department.objects.all()
+    serializer_class = DepartmentSerializer
+
+    # Return error response on attempt to delete protected department (referenced by some mertic)
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {'detail': 'Cannot delete: this department is still referenced by one or more students.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+
+# === HOBBIES CRUD ===
+
+class HobbyListCreateView(generics.ListCreateAPIView):
+    queryset = Hobby.objects.all()
+    serializer_class = HobbySerializer
+
+
+class HobbyDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Hobby.objects.all()
+    serializer_class = HobbySerializer
+
+    # Return error response on attempt to delete protected hobby (referenced by some mertic)
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        try:
+            self.perform_destroy(instance)
+        except ProtectedError:
+            return Response(
+                {'detail': 'Cannot delete: this hobby is still referenced by one or more students.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

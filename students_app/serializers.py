@@ -8,8 +8,6 @@ from students_app.contstants import (
     TRAVELING_TIME_MAP,
 )
 
-TIME_MAP_TYPE = DAILY_STUDY_TIME_MAP | MEDIA_VIDEO_TIME_MAP | TRAVELING_TIME_MAP
-
 def minutes_from_enum(map: dict[str, tuple], enum_value: str) -> int:
     '''
     Get time in minutes from the map using enum label
@@ -22,45 +20,60 @@ def minutes_from_enum(map: dict[str, tuple], enum_value: str) -> int:
 
 
 
-class DepartmentSerializer(serializers.ModelSerializer):
+class _NameValidationSerializer:
+    '''
+    Simple mixin to validate names of Department and Hobby entities. Enforces:
+    - Nmae not empty
+    - Trimmed name is not empty
+    - Name in min/max length range after trimming
+    '''
+    NAME_MIN_LEN = 2
+    NAME_MAX_LEN = 100
+
+    def validate_name(self, value: str) -> str:
+        if value is None:
+            raise serializers.ValidationError('Name is required.')
+
+        trimmed = value.strip()
+
+        if not trimmed:
+            raise serializers.ValidationError('Name cannot be empty or only spaces.')
+
+        if len(trimmed) < self.NAME_MIN_LEN:
+            raise serializers.ValidationError(f'Name must be at least {self.NAME_MIN_LEN} characters.')
+
+        if len(trimmed) > self.NAME_MAX_LEN:
+            raise serializers.ValidationError(f'Name must be at most {self.NAME_MAX_LEN} characters.')
+
+        return trimmed
+
+
+
+class DepartmentSerializer(_NameValidationSerializer, serializers.ModelSerializer):
+    name = serializers.CharField(required=True, allow_blank=False)
+
     class Meta:
         model = Department
         fields = ['id', 'name']
 
 
 
-class HobbySerializer(serializers.ModelSerializer):
+class HobbySerializer(_NameValidationSerializer, serializers.ModelSerializer):
+    name = serializers.CharField(required=True, allow_blank=False)
+
     class Meta:
         model = Hobby
         fields = ['id', 'name']
 
 
 
+# === STUDENT SERIALIZRS ===
+
 class StudentMetricsReadSerializer(serializers.ModelSerializer):
     class Meta:
         model = StudentMetrics
         # We hide foreighn key
         exclude = ['student']
-
-
-
-class StudentReadSerializer(serializers.ModelSerializer):
-    department = DepartmentSerializer(read_only=True)
-    hobby = HobbySerializer(read_only=True)
-    metrics = StudentMetricsReadSerializer(read_only=True)
-
-    class Meta:
-        model = Student
-        fields = [
-            'id',
-            'gender',
-            'department',
-            'height_cm',
-            'weight_kg',
-            'hobby',
-            'created_at',
-            'metrics',
-        ]
 
 
 
@@ -87,9 +100,65 @@ class StudentMetricsWriteSerializer(serializers.ModelSerializer):
 
 
 
+class StudentReadSerializer(serializers.ModelSerializer):
+    department = DepartmentSerializer(read_only=True)
+    hobby = HobbySerializer(read_only=True)
+    metrics = StudentMetricsReadSerializer(read_only=True)
+
+    class Meta:
+        model = Student
+        fields = [
+            'id',
+            'gender',
+            'department',
+            'height_cm',
+            'weight_kg',
+            'hobby',
+            'metrics',
+        ]
+        read_only_fields = ['id']
+    
+    @transaction.atomic
+    def create(self, validated_data):
+        # Separate metrics and student data
+        metrics_data = validated_data.pop('metrics')
+
+        # Create both entities
+        student = Student.objects.create(**validated_data)
+        StudentMetrics.objects.create(student=student, **metrics_data)
+
+        return student
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        metrics_data = validated_data.pop('metrics', None)
+
+        # Update Student fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+
+        instance.save()
+
+        # Update metrics (OneToOne)
+        if metrics_data is not None:
+            metrics = instance.metrics
+
+            for attr, value in metrics_data.items():
+                setattr(metrics, attr, value)
+
+            metrics.save()
+
+        return instance
+
+
+
 class StudentWriteSerializer(serializers.ModelSerializer):
-    department = serializers.CharField(write_only=True)
-    hobby = serializers.CharField(write_only=True)
+    department = serializers.PrimaryKeyRelatedField(
+        queryset=Department.objects.all()
+    )
+    hobby = serializers.PrimaryKeyRelatedField(
+        queryset=Hobby.objects.all()
+    )
     metrics = StudentMetricsWriteSerializer()
 
     class Meta:
@@ -105,75 +174,30 @@ class StudentWriteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id']
 
-    def _get_or_create_department(self, name: str) -> Department:
-        '''
-        Helper to get already existing or create new Department, basedon name
-        '''
-        name = str(name).strip()
-
-        if not name:
-            raise serializers.ValidationError({'department': 'Department name is required!'})
-
-        dept, _ = Department.objects.get_or_create(name=name)
-
-        return dept
-
-    def _get_or_create_hobby(self, name: str) -> Hobby:
-        '''
-        Same for hobby
-        '''
-        name = str(name).strip()
-
-        if not name:
-            raise serializers.ValidationError({'hobby': 'Hobby name is required!'})
-
-        hobby, _ = Hobby.objects.get_or_create(name=name)
-
-        return hobby
-
     @transaction.atomic
     def create(self, validated_data):
-        dept_name = validated_data.pop('department')
-        hobby_name = validated_data.pop('hobby')
         metrics_data = validated_data.pop('metrics')
 
-        dept = self._get_or_create_department(dept_name)
-        hobby = self._get_or_create_hobby(hobby_name)
-
-        # Create student entity
-        student = Student.objects.create(
-            department=dept,
-            hobby=hobby,
-            **validated_data
-        )
-
-        # Create linked studenr metrics 
+        # Create Student entity first, then add linked metrics
+        student = Student.objects.create(**validated_data)
         StudentMetrics.objects.create(student=student, **metrics_data)
 
         return student
 
     @transaction.atomic
     def update(self, instance, validated_data):
-        # Update related fields
-        if 'department' in validated_data:
-            instance.department = self._get_or_create_department(validated_data.pop('department'))
-
-        if 'hobby' in validated_data:
-            instance.hobby = self._get_or_create_hobby(validated_data.pop('hobby'))
-
         metrics_data = validated_data.pop('metrics', None)
 
-        # Update oher student fields (other non department/hobby)
+        # Update non metric fields first
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
 
-        # Update student entity
         instance.save()
 
-        # Iterate over student metrics
+        # Then add metric ones
         if metrics_data is not None:
             metrics = instance.metrics
-            # Update student metrics
+
             for attr, value in metrics_data.items():
                 setattr(metrics, attr, value)
 
