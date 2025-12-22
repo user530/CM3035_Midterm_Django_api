@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -118,3 +119,16 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+
+# === Admin page credentials ===
+SHOW_ADMIN_CREDS = os.getenv('SHOW_ADMIN_CREDS', '1').lower() in ('1', 'true', 'yes')
+ADMIN_USERNAME = os.getenv('DJANGO_SUPERUSER_USERNAME', 'admin')
+ADMIN_PASSWORD = os.getenv('DJANGO_SUPERUSER_PASSWORD', 'admin123')
+ADMIN_EMAIL = os.getenv('DJANGO_SUPERUSER_EMAIL', 'admin@example.com')
+
+# === Django rest framework settings ===
+REST_FRAMEWORK = {
+    # Default pagination
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': int(os.getenv('API_PAGE_SIZE', '50')),
+}
