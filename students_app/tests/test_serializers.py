@@ -1,4 +1,5 @@
 from django.test import TestCase
+from typing import cast
 
 from students_app.models import Student, StudentMetrics, Department, Hobby
 from students_app.serializers import StudentWriteSerializer
@@ -12,6 +13,11 @@ from students_app.contstants import (
 )
 
 class StudentSerializerTests(TestCase):
+    def setUp(self):
+        # Create dummy department and hobby
+        self.department = Department.objects.create(name='CSE')
+        self.hobby = Hobby.objects.create(name='Reading')
+
     def generate_json_payload(self):
         # Just pick enum values
         daily_study = DailyStudyTime.choices[0][0]
@@ -23,8 +29,8 @@ class StudentSerializerTests(TestCase):
 
         return {
             'gender': 'Male',
-            'department': 'CSE',
-            'hobby': 'Reading',
+            'department': self.department.pk,
+            'hobby': self.hobby.pk,
             'height_cm': 170,
             'weight_kg': 69,
             'metrics': {
@@ -63,13 +69,15 @@ class StudentSerializerTests(TestCase):
 
         self.assertTrue(ser.is_valid(), ser.errors)
 
-        student =  ser.save()
+        student =  cast(Student, ser.save())
+        
         metrics = StudentMetrics.objects.get(student=student)
 
         self.assertEqual(Student.objects.count(), 1)
         self.assertEqual(StudentMetrics.objects.count(), 1)
-        self.assertTrue(Department.objects.filter(name='CSE').exists())
-        self.assertTrue(Hobby.objects.filter(name='Reading').exists())
+        
+        self.assertEqual(student.department.pk, self.department.pk)
+        self.assertEqual(student.hobby.pk, self.hobby.pk)
 
         # Ensure metrics created for the student
         self.assertEqual(metrics.college_mark, 78)
@@ -116,15 +124,14 @@ class StudentSerializerTests(TestCase):
         new_study = choices[1]
 
         update_data = {
-            'department': 'CSE',
-            'hobby': 'Reading',
+            'department': self.department.pk,
+            'hobby': self.hobby.pk,
             'metrics': {
                 'daily_studying_time': new_study,
             },
         }
 
         ser2 = StudentWriteSerializer(instance=student, data=update_data, partial=True)
-
         self.assertTrue(ser2.is_valid(), ser2.errors)
 
         student2 = ser2.save()
