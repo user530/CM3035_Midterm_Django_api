@@ -46,7 +46,7 @@ All required Python packages are listed in `requirements.txt`.
 ```bash
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py load_students --truncate
+python manage.py load_students students_app/data/students_behaviour.csv --truncate
 python manage.py seed_admin
 python manage.py test
 python manage.py runserver
