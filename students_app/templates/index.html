@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Student Attitude & Behaviour API</title>
+  <style>
+    body { font-family: Roboto, Arial, sans-serif; margin: 32px; line-height: 1.5 }
+    .card { max-width: 900px; padding: 12px 20px; border: 1px solid #ddd; border-radius: 12px }
+    h1 { margin-top: 0 }
+    ul { margin: 8px 0 16px }
+    code { background: #f6f6f6; padding: 2px 6px; border-radius: 6px }
+    a { text-decoration: none }
+    a:hover { text-decoration: underline }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="text-align: center">Student Attitude & Behaviour API</h1>
+    <p>
+      CM3035 Midterm project — Django RESTful API.
+      Implemenr CRUD endpoints, analytics endpoints, CSV loader, and unit tests.
+    </p>
+
+    <h2>Key features</h2>
+    <ul>
+      <li>CRUD for Students, Departments, Hobbies</li>
+      <li>6 analytics endpoints (search, summaries, comparisons, computed metrics)</li>
+      <li>CSV load command</li>
+      <li>Browsable API +pagination</li>
+    </ul>
+
+    <h2>Links</h2>
+    <div class="grid">
+      <div>
+        <h3>Core</h3>
+        <ul>
+          <li><a href="{{ base }}/api/">API Home</a></li>
+          <li><a href="{{ base }}/api/health/">Health</a></li>
+          <li><a href="{{ base }}/admin/">Admin</a></li>
+        </ul>
+
+        <h3>CRUD</h3>
+        <ul>
+          <li><a href="{{ base }}/api/students">Students</a></li>
+          <li><a href="{{ base }}/api/departments">Departments</a></li>
+          <li><a href="{{ base }}/api/hobbies">Hobbies</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h3>Analytics</h3>
+        <ul>
+          <li><a href="{{ base }}/api/students/search">Student search</a></li>
+          <li><a href="{{ base }}/api/analytics/departments/summary">Departments summary</a></li>
+          <li><a href="{{ base }}/api/analytics/parttime/impact">Part-time impact</a></li>
+          <li><a href="{{ base }}/api/analytics/studytime/performance">Study-time performnace</a></li>
+          <li><a href="{{ base }}/api/analytics/risk">Risk list</a></li>
+          <li><a href="{{ base }}/api/analytics/bmi/distribution">BMI distribution</a></li>
+        </ul>
+
+        <h3>Examples</h3>
+        <ul>
+          <li><a href="{{ base }}/api/students?page=1"><code>/api/students?page=1</code></a></li>
+          <li><a href="{{ base }}/api/students/search?department=1&gender=Male&min_college_mark=70&limit=10"><code>/api/students/search?... </code></a></li>
+          <li><a href="{{ base }}/api/analytics/departments/summary"><code>/api/analytics/departments/summary</code></a></li>
+          <li><a href="{{ base }}/api/analytics/risk?stress_level=Bad&max_college_mark=60&limit=20"><code>/api/analytics/risk?...</code></a></li>
+          <li><a href="{{ base }}/api/analytics/bmi/distribution?by=gender"><code>/api/analytics/bmi/distribution?by=gender</code></a></li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="margin-bottom:0;color:#555">
+      The API home route (<code>/api/</code>) lists versions, requirements, and all endpoint URLs
+    </p>
+  </div>
+</body>
+</html>

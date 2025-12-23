@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db.models import ProtectedError
 from django import get_version as get_django_version
+from django.shortcuts import render
 from rest_framework import generics, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -45,6 +46,15 @@ def _admin_block(base: str) -> dict:
             }
         )
     return block
+
+
+
+# === PRIMITIVE HOMEPAGE ===
+def homepage(request):
+    base = request.build_absolute_uri('/')[:-1]
+
+    return render(request, 'index.html', {'base': base})
+
 
 
 # === UTILITY ENDPOINTS ===
